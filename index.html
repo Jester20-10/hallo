@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Сапёр</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #f4f4f9;
+    margin: 0;
+  }
+  .game-container {
+    display: grid;
+    gap: 2px;
+  }
+  .cell {
+    width: 30px;
+    height: 30px;
+    background-color: #c0c0c0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: pointer;
+    border: 1px solid #a0a0a0;
+    font-size: 16px;
+    color: #333;
+  }
+  .cell.revealed {
+    background-color: #e0e0e0;
+    cursor: default;
+  }
+  .cell.mine {
+    background-color: red;
+  }
+  .cell.flagged {
+    background-color: yellow;
+  }
+</style>
+</head>
+<body>
+<div id="game" class="game-container"></div>
+
+<script>
+const rows = 8;
+const cols = 8;
+const minesCount = 10;
+
+let board = [];
+let minePositions = new Set();
+let gameOver = false;
+
+function createBoard() {
+  const gameContainer = document.getElementById('game');
+  gameContainer.style.gridTemplateRows = `repeat(${rows}, 1fr)`;
+  gameContainer.style.gridTemplateColumns = `repeat(${cols}, 1fr)`;
+
+  for (let r = 0; r < rows; r++) {
+    let row = [];
+    for (let c = 0; c < cols; c++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell');
+      cell.dataset.row = r;
+      cell.dataset.col = c;
+      cell.addEventListener('click', handleClick);
+      cell.addEventListener('contextmenu', handleRightClick);
+      gameContainer.appendChild(cell);
+      row.push({ element: cell, isMine: false, revealed: false, flagged: false });
+    }
+    board.push(row);
+  }
+
+  placeMines();
+  calculateNumbers();
+}
+
+function placeMines() {
+  while (minePositions.size < minesCount) {
+    const randRow = Math.floor(Math.random() * rows);
+    const randCol = Math.floor(Math.random() * cols);
+    const pos = `${randRow},${randCol}`;
+    if (!minePositions.has(pos)) {
+      minePositions.add(pos);
+      board[randRow][randCol].isMine = true;
+    }
+  }
+}
+
+function calculateNumbers() {
+  for (let r = 0; r < rows; r++) {
+    for (let c = 0; c < cols; c++) {
+      if (board[r][c].isMine) continue;
+      let count = 0;
+
+      for (let dr = -1; dr <= 1; dr++) {
+        for (let dc = -1; dc <= 1; dc++) {
+          const nr = r + dr;
+          const nc = c + dc;
+          if (nr >= 0 && nr < rows && nc >= 0 && nc < cols && board[nr][nc].isMine) {
+            count++;
+          }
+        }
+      }
+
+      board[r][c].number = count;
+    }
+  }
+}
+
+function handleClick(e) {
+  if (gameOver || this.classList.contains('revealed') || this.classList.contains('flagged')) return;
+
+  const row = parseInt(this.dataset.row);
+  const col = parseInt(this.dataset.col);
+
+  if (board[row][col].isMine) {
+    revealMines();
+    alert("Игра окончена!");
+    gameOver = true;
+    return;
+  }
+
+  revealCell(row, col);
+}
+
+function handleRightClick(e) {
+  e.preventDefault();
+  if (gameOver || this.classList.contains('revealed')) return;
+
+  const row = parseInt(this.dataset.row);
+  const col = parseInt(this.dataset.col);
+
+  if (!board[row][col].flagged) {
+    this.classList.add('flagged');
+    board[row][col].flagged = true;
+  } else {
+    this.classList.remove('flagged');
+    board[row][col].flagged = false;
+  }
+}
+
+function revealCell(row, col) {
+  const cell = board[row][col];
+  if (cell.revealed || cell.flagged) return;
+
+  cell.revealed = true;
+  cell.element.classList.add('revealed');
+
+  if (cell.isMine) return;
+
+  if (cell.number > 0) {
+    cell.element.textContent = cell.number;
+  } else {
+    for (let dr = -1; dr <= 1; dr++) {
+      for (let dc = -1; dc <= 1; dc++) {
+        const nr = row + dr;
+        const nc = col + dc;
+        if (nr >= 0 && nr < rows && nc >= 0 && nc < cols) {
+          revealCell(nr, nc);
+        }
+      }
+    }
+  }
+}
+
+function revealMines() {
+  for (let pos of minePositions) {
+    const [row, col] = pos.split(',').map(Number);
+    board[row][col].element.classList.add('mine');
+  }
+}
+
+createBoard();
+</script>
+</body>
+</html>
